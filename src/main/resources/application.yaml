@@ -1,0 +1,50 @@
+
+spring:
+  application:
+    name: taskflow
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskflow
+    username: taskflow
+    password: local_dev_password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: TaskFlowPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    properties:
+      hibernate:
+        ddl-auto: validate
+        type:
+          json_format_mapper: jackson3
+      open-in-view: false
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+taskflow:
+  worker:
+    enabled: true
+    poll-interval-ms: 500
+    recovery-interval-ms: 5000
