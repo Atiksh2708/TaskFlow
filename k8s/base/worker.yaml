@@ -1,0 +1,30 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskflow-worker
+  namespace: taskflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskflow-worker
+  template:
+    metadata:
+      labels:
+        app: taskflow-worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/atiksh2708/taskflow:sha-e19aafd
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: taskflow-config
+            - secretRef:
+                name: taskflow-secret
+          env:
+            - name: TASKFLOW_WORKER_ENABLED
+              value: "true"
+            - name: SPRING_MAIN_WEB_APPLICATION_TYPE
+              value: "none"
