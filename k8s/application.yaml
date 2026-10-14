@@ -8,7 +8,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Atiksh2708/TaskFlow.git
-    targetRevision: feature/ghcr-publishing
+    targetRevision: main
     path: k8s/base
   destination:
     server: https://kubernetes.default.svc
