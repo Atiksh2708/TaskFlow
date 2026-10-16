@@ -1,92 +1,54 @@
+test:
+  name: Build and test
+  runs-on: ubuntu-latest
 
-name: TaskFlow CI
+  services:
+    postgres:
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: taskflow_test
+        POSTGRES_USER: taskflow
+        POSTGRES_PASSWORD: local_dev_password
+      ports:
+        - 5432:5432
+      options: >-
+        --health-cmd "pg_isready -U taskflow -d taskflow_test"
+        --health-interval 5s
+        --health-timeout 3s
+        --health-retries 10
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    redis:
+      image: redis:7-alpine
+      ports:
+        - 6379:6379
+      options: >-
+        --health-cmd "redis-cli ping"
+        --health-interval 5s
+        --health-timeout 3s
+        --health-retries 10
 
-permissions:
-  contents: read
+  steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
 
-jobs:
-  test:
-    name: Build and test
-    runs-on: ubuntu-latest
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+        cache: maven
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: taskflow_test
-          POSTGRES_USER: taskflow
-          POSTGRES_PASSWORD: local_dev_password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U taskflow -d taskflow_test"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
+    - name: Make Maven Wrapper executable
+      run: chmod +x mvnw
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+    - name: Run tests
+      run: ./mvnw --batch-mode clean verify
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/taskflow_test
+        SPRING_DATASOURCE_USERNAME: taskflow
+        SPRING_DATASOURCE_PASSWORD: local_dev_password
+        SPRING_DATA_REDIS_HOST: localhost
+        SPRING_DATA_REDIS_PORT: 6379
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Make Maven Wrapper executable
-        run: chmod +x mvnw
-
-      - name: Run tests
-        run: ./mvnw --batch-mode clean verify
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/taskflow_test
-          SPRING_DATASOURCE_USERNAME: taskflow
-          SPRING_DATASOURCE_PASSWORD: local_dev_password
-
-      - name: Build Docker image
-        run: docker build -t taskflow:${{ github.sha }} .
-
-  publish:
-    name: Publish Docker image
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Prepare image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+    - name: Build Docker image
+      run: docker build -t taskflow:${{ github.sha }} .
