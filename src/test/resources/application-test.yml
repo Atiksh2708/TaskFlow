@@ -15,3 +15,5 @@ spring:
 taskflow:
   worker:
     enabled: false
+  rate-limit:
+    enabled: false
